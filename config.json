@@ -1,0 +1,9 @@
+{
+  "wiki_url": "https://wiki.example.com",
+  "wiki_user": "botuser",
+  "wiki_password": "botpassword",
+  "namespace": "mitglieder:protokolle:plenum",
+  "indexpage": "mitglieder:protokolle:plenum",
+  "redirectpage": "mitglieder:protokolle:plenum:themensammlung",
+  "plenum_day_of_week": 3
+}
