@@ -17,36 +17,29 @@ class Wiki:
     def __init__(self, url, wikiuser, wikipass):
         try:
             self.wiki = dokuwiki.DokuWiki(url, wikiuser, wikipass)
-        except dokuwiki.DokuWikiError:
-            raise WikiError("An error occured while connecting to the wiki.")
+        except dokuwiki.DokuWikiError as  err:
+            raise err
 
     def get_page(self, page):
         """ returns the contents of a given page """
         try:
             return self.wiki.pages.get(page)
         except dokuwiki.DokuWikiError as err:
-            print(f"An error occurred while receiving the page {page}. Error: {err}")
-            sys.exit(1)
+            raise err
 
     def get_page_versions(self, page):
         """ returns a list of the last versions of a given page """
         try:
             return self.wiki.pages.versions(page)
         except dokuwiki.DokuWikiError as err:
-            print(
-                f"An error occurred while receiving the versions of the page {page}: {err}"
-            )
-            sys.exit(1)
+            raise err
 
     def get_page_info(self, page):
         """ return meta information about a given page """
         try:
             return self.wiki.pages.info(page)
         except dokuwiki.DokuWikiError as err:
-            print(
-                f"An error occurred while receiving informations of the page {page}: {err}"
-            )
-            sys.exit(1)
+            raise err
 
     def page_exists(self, page):
         """ returns True if a given page exists, False if not """
@@ -61,8 +54,7 @@ class Wiki:
         try:
             self.wiki.pages.set(page, content, sum=summary)
         except dokuwiki.DokuWikiError as err:
-            print(f"An error occurred while writing the page {page}: {err}")
-            sys.exit(1)
+            raise err
         return True
 
     def set_redirect(self, redirect_src, redirect_dest):
@@ -85,13 +77,13 @@ class Plenum:
         try:
             with open(tpl_plenum, "r") as fh:
                 self.tpl_plenum = fh.read()
-        except BaseException as e:
+        except (FileNotFoundError, PermissionError) as e:
             print(f"unable to load plenum template: {e}")
 
         try:
             with open(tpl_blank, "r") as fh:
                 self.tpl_blank = fh.read()
-        except BaseException as e:
+        except (FileNotFoundError, PermissionError) as e:
             print(f"unable to load plenum blank topics template: {e}")
 
     def _calc_next_date(self, today):
@@ -126,13 +118,11 @@ class Plenum:
             plenum_page,
             re.MULTILINE | re.IGNORECASE,
         )
-
         # return False if heading "Termine" not in page content
         if not events_heading:
             return False
         events_heading = events_heading[0].strip("\n")
         events_begin = plenum_page_list.index(events_heading) + 1
-
         eventlist = []
         for line in plenum_page_list[events_begin:]:
             # 1st capture group = date, 2nd = event description
@@ -153,9 +143,7 @@ class Plenum:
         for idx in section_index:
             if section_index.index(idx) != len(section_index) - 1:
                 sections.append((idx, section_index[section_index.index(idx) + 1] - 1))
-
         section_list = []
-
         for section in sections:
             headline = pagelist[section[0]].strip("=").strip()
             content = "\n".join(pagelist[section[0] + 1 : section[1]])
@@ -166,10 +154,8 @@ class Plenum:
     def generate_page_next_plenum(self, plenum_page):
         # checking if last plenum took place
         if self.last_plenum_took_place(plenum_page):
-
             # last plenum took place
             content = self.tpl_blank
-
         else:
             # last plenum didn't take place
             # extract topics from last plenum
@@ -182,7 +168,6 @@ class Plenum:
                     [f"===== {block[0]} =====", block[1].strip("\n"), "\n"]
                 )
             content = content.strip()
-
         # processing events
         events = ""
         eventlist = self.upcoming_events(plenum_page)
@@ -191,7 +176,6 @@ class Plenum:
                 events += f"  * {event[0]}{event[1]}\n"
         else:
             eventlist = ""
-
         # generate new page from template
         template = Template(self.tpl_plenum)
         return template.render(
@@ -200,23 +184,21 @@ class Plenum:
 
     def update_index_page(self, index_page, namespace):
         plenum_list = index_page.splitlines()
-
-        try:
-            insert_index = plenum_list.index(f"===== {self.next_date.year} =====") + 1
-        except ValueError as err:
-            # print("Year not found")
+        # check if header with current year is present
+        year_header = f"===== {self.next_date.year} ====="
+        if year_header in plenum_list:
+            insert_index = plenum_list.index(year_header) + 1
+        else:
             insert_index = None
-
-        try:
+        # check is header 'Protokolle' is present
+        protocol_header = "====== Protokolle ======"
+        if "====== Protokolle ======" in plenum_list:
             protocol_index = plenum_list.index("====== Protokolle ======") + 1
-        except ValueError as err:
-            # print("Protokolle not found in index page")
+        else:
             protocol_index = 0
-
         if not insert_index:
             insert_index = protocol_index + 2
             plenum_list.insert(protocol_index, f"===== {self.next_date.year} =====")
-
         plenum_list.insert(insert_index, f"  * [[{ self.next_page }]]")
         return "\n".join(plenum_list)
 
@@ -237,8 +219,7 @@ def load_config(owndir):
         try:
             config = json.load(fh)
         except BaseException as e:
-            print(f"While loading configuration file an error occurred: {e}")
-            sys.exit(1)
+            raise e
 
     local_config_file = os.path.join(owndir, "config.local.json")
     if os.path.isfile(local_config_file):
@@ -246,8 +227,7 @@ def load_config(owndir):
             try:
                 local_config = json.load(fh)
             except BaseException as e:
-                print(f"While loading local configuration file an error occurred: {e}")
-                sys.exit(1)
+                raise e
     config = {**config, **local_config}
     return config
 
@@ -275,5 +255,5 @@ if __name__ == "__main__":
         if not plenum.plenum_in_list(index_page_content):
             wiki.set_page(config["indexpage"], new_index_page_content)
         wiki.set_redirect(config["redirectpage"], plenum.next_page)
-    except WikiError as err:
+    except Exception as err:
         sys.exit(err)
