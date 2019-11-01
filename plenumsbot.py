@@ -9,15 +9,11 @@ from jinja2 import Template
 import dokuwiki
 
 
-class WikiError(Exception):
-    pass
-
-
 class Wiki:
     def __init__(self, url, wikiuser, wikipass):
         try:
             self.wiki = dokuwiki.DokuWiki(url, wikiuser, wikipass)
-        except dokuwiki.DokuWikiError as  err:
+        except dokuwiki.DokuWikiError as err:
             raise err
 
     def get_page(self, page):
