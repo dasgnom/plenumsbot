@@ -129,7 +129,10 @@ class Plenum:
             event = re.findall(r"^\s{2,4}\*\s(\d{4}-\d{2}-\d{2})(.*)$", line)
             if event and event[0][0] > self.next_date.strftime("%Y-%m-%d"):
                 eventlist.append(event[0])
-
+        empty_events_template = ("yyyy-mm-dd", " Hier könnte dein Termin stehen.")
+        if len(eventlist) == 0:
+            eventlist.append(empty_events_template)
+        print(eventlist)
         return eventlist
 
     def extract_content(self, plenum_page):
