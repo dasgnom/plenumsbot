@@ -63,9 +63,9 @@ class Wiki:
 
 class Plenum:
     def __init__(
-        self, dow, namespace, tpl_plenum, tpl_blank, today=datetime.date.today()
+        self, day_of_week, namespace, tpl_plenum, tpl_blank, today=datetime.date.today()
     ):
-        self.dow = dow
+        self.day_of_week = day_of_week
         self.next_date = self._calc_next_date(today)
         self.last_date = self._calc_last_date(today)
         self.next_page = ":".join([namespace, self.next_date.strftime("%Y-%m-%d")])
@@ -84,14 +84,14 @@ class Plenum:
 
     def _calc_next_date(self, today):
         # today = datetime.date.today()
-        delta_days = self.dow - today.weekday()
+        delta_days = self.day_of_week - today.weekday()
         if delta_days <= 0:
             delta_days += 7
         return today + datetime.timedelta(delta_days)
 
     def _calc_last_date(self, today):
         # today = datetime.date.today()
-        delta_days = self.dow - today.weekday()
+        delta_days = self.day_of_week - today.weekday()
         if delta_days > 0:
             delta_days -= 7
         return today + datetime.timedelta(delta_days)
