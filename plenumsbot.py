@@ -15,34 +15,86 @@ Section = collections.namedtuple("Section", "topic, contents")
 
 class Wiki:
     def __init__(self, url, wikiuser, wikipass):
+        """
+        Constructor method for class Wiki
+        
+        Args:
+            url (str): Base url of the DokuWiki installation
+            wikiuser (str): Login username
+            wikipass (str): Login password
+        
+        Raises:
+            err: exceptions that occurred while accessing the wiki
+        """
         try:
             self.wiki = dokuwiki.DokuWiki(url, wikiuser, wikipass)
         except dokuwiki.DokuWikiError as err:
             raise err
 
     def get_page(self, page):
-        """ returns the contents of a given page """
+        """
+        Returns the plaintext source of a given page.
+        
+        Args:
+            page (str): DokuWiki page name
+        
+        Raises:
+            err: exceptions that occurred while accessing the wiki
+        
+        Returns:
+            str: the plaint text source of the given page
+        """
         try:
             return self.wiki.pages.get(page)
         except dokuwiki.DokuWikiError as err:
             raise err
 
     def get_page_versions(self, page):
-        """ returns a list of the last versions of a given page """
+        """
+        Returns a list of the last versions of a given page
+
+        Args:
+            page (str): DokuWiki page name
+        
+        Raises:
+            err: exceptions that occurred while accessing the wiki
+        
+        Returns:
+            list: a list containing information about all versions of a page
+        """
         try:
             return self.wiki.pages.versions(page)
         except dokuwiki.DokuWikiError as err:
             raise err
 
     def get_page_info(self, page):
-        """ return meta information about a given page """
+        """
+        Returns meta information about a given page
+
+        Args:
+            page (str): DokuWiki page name
+        
+        Raises:
+            err: exceptions that occurred while accessing the wiki
+        
+        Returns:
+            dict: metainformation about the page (e.g, name, lastModified, author, version)
+        """
         try:
             return self.wiki.pages.info(page)
         except dokuwiki.DokuWikiError as err:
             raise err
 
     def page_exists(self, page):
-        """ returns True if a given page exists, False if not """
+        """
+        Returns True if a page exists, False is not
+        
+        Args:
+            page (str): DokuWiki page name
+        
+        Returns:
+            bool: True if the page exists, False if not
+        """
         page_info = self.get_page_info(page)
         if "name" in page_info and page_info["name"] == page:
             return True
@@ -50,7 +102,20 @@ class Wiki:
         return False
 
     def set_page(self, page, content, summary="modified by plenumsbot"):
-        """ writes content to a given page """
+        """
+        Write given context to a given page.
+        
+        Args:
+            page (str): pagename to be write to
+            content (str): plaintext DokuWiki source to be written to the page
+            summary (str, optional): Edit summary. Defaults to "modified by plenumsbot".
+        
+        Raises:
+            err: errors that occurred while accessing the wiki
+        
+        Returns:
+            bool: True if the page was written successfully
+        """
         try:
             self.wiki.pages.set(page, content, sum=summary)
         except dokuwiki.DokuWikiError as err:
@@ -58,7 +123,13 @@ class Wiki:
         return True
 
     def set_redirect(self, redirect_src, redirect_dest):
-        """ set a redirect from redirect_src to redirect_dest """
+        """
+        creates a redirect from redirect_src to redirect_dest
+        
+        Args:
+            redirect_src (str): name of the page to be redirected from
+            redirect_dest (str): name of the page to be redirected to
+        """
         redirect_content = f"~~GOTO>{redirect_dest}~~"
         self.set_page(
             redirect_src, redirect_content, f"redirect target set to {redirect_dest}"
