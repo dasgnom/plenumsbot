@@ -7,6 +7,10 @@ import json
 import datetime
 from jinja2 import Template
 import dokuwiki
+import collections
+
+Event = collections.namedtuple("Event", "date, description")
+Section = collections.namedtuple("Section", "topic, contents")
 
 
 class Wiki:
@@ -65,6 +69,16 @@ class Plenum:
     def __init__(
         self, day_of_week, namespace, tpl_plenum, tpl_blank, today=datetime.date.today()
     ):
+        """
+        Constructor method for class Plenum.
+        
+        Args:
+            day_of_week (int): Number between 0-6; 0=Monday, 1=Tuesday, ..., 6=Sunday
+            namespace (str): DokuWiki namespace in which the protocol pages are located
+            tpl_plenum (str): file containing the protocol jinja2-template
+            tpl_blank (str): file containing the topics skeleton used to create a fresh protocol draft
+            today (datetime.date, optional): Date the script runs. Change only for debugging / testing purposes. Defaults to datetime.date.today().
+        """
         self.day_of_week = day_of_week
         self.next_date = self._calc_next_date(today)
         self.last_date = self._calc_last_date(today)
@@ -83,13 +97,30 @@ class Plenum:
             print(f"unable to load plenum blank topics template: {e}")
 
     def _calc_next_date(self, today):
-        # today = datetime.date.today()
+        """
+        Returns the date of the coming plenum.
+        
+        Args:
+            today (datetime object): date the script runs. Usually datetime.date.today()
+        
+        Returns:
+            datetime.date: Next plenums date.
+        """
         delta_days = self.day_of_week - today.weekday()
         if delta_days <= 0:
             delta_days += 7
         return today + datetime.timedelta(delta_days)
 
     def _calc_last_date(self, today):
+        """
+        Returns the date of the last plenum (in the past).
+        
+        Args:
+            today (datetime.date): date the scripts runs. Usually datetime.date.today()
+        
+        Returns:
+            datetime.date: Date the last plenum took place.
+        """
         # today = datetime.date.today()
         delta_days = self.day_of_week - today.weekday()
         if delta_days > 0:
@@ -97,6 +128,19 @@ class Plenum:
         return today + datetime.timedelta(delta_days)
 
     def last_plenum_took_place(self, plenum_page):
+        """
+        Checks if the last plenum took place. The check is performed by checking
+        the end time in the given protocol text. 
+        The string "Ende: hh:mm" must be present in the last two rows of the protocol
+        to pass this check. hh and mm have to be replaced by a valid time designation.
+                
+        Args:
+            plenum_page (str): Plaintext plenum protocol (DokuWiki source)
+        
+        Returns:
+            bool: true it the plenum took place and false if it didn't take place.
+        """
+
         page_lines = plenum_page.splitlines()
         match = re.search(
             r"^Ende:\s*\d{2}:\d{2}\s*Uhr\s*$",
@@ -106,7 +150,17 @@ class Plenum:
         return bool(match)
 
     def upcoming_events(self, plenum_page):
-        """ find upcoming events in plenum_page which are after the next plenum """
+        """
+        Extracts the upcoming events from the given protocol text and removes events that
+        will be in the past, when the next plenum takes place.
+        
+        Args:
+            plenum_page (str): Plaintext plenum protocol (DokuWiki source)
+        
+        Returns:
+            list of Event: list of Event, containing all events that take place after self.nextdate. 
+            A placeholder entry is created if no upcoming event where found.
+        """
         # find section termine
         plenum_page_list = plenum_page.splitlines()
         events_heading = re.findall(
@@ -124,14 +178,26 @@ class Plenum:
             # 1st capture group = date, 2nd = event description
             event = re.findall(r"^\s{2,4}\*\s(\d{4}-\d{2}-\d{2})(.*)$", line)
             if event and event[0][0] > self.next_date.strftime("%Y-%m-%d"):
-                eventlist.append(event[0])
+                event_entry = Event(event[0], event[1])
+                eventlist.append(event_entry)
         empty_events_template = ("yyyy-mm-dd", " Hier könnte dein Termin stehen.")
         if len(eventlist) == 0:
             eventlist.append(empty_events_template)
-        print(eventlist)
         return eventlist
 
     def extract_content(self, plenum_page):
+        """
+        Extracts the contents from a protocol. Called if a plenum didn't take place
+        and the entries for the skipped plenum are supposed to be in the next 
+        protocol draft, too.
+        
+        Args:
+            plenum_page (str): Plaintext plenum protocol (DokuWiki source)
+        
+        Returns:
+            list of Section: list of Section, containing all sections, except "Termine", from the
+            given protocol page.
+        """
         pagelist = plenum_page.splitlines()
         section_index = []
         for i in range(0, len(pagelist)):
@@ -146,11 +212,19 @@ class Plenum:
         for section in sections:
             headline = pagelist[section[0]].strip("=").strip()
             content = "\n".join(pagelist[section[0] + 1 : section[1]])
-            section_list.append((headline, content))
-
+            section_list.append(Section(headline, content))
         return section_list
 
     def generate_page_next_plenum(self, plenum_page):
+        """
+        Combines all parts needed to generate the protocol draft for the next plenum.
+        
+        Args:
+            plenum_page (str): Plaintext plenum protcol (DokuWiki source)
+        
+        Returns:
+            str: DokuWiki formatted plenum protocol draft
+        """
         # checking if last plenum took place
         if self.last_plenum_took_place(plenum_page):
             # last plenum took place
@@ -182,6 +256,16 @@ class Plenum:
         )
 
     def update_index_page(self, index_page, namespace):
+        """
+        Adds the page to the overview page
+        
+        Args:
+            index_page (str): plaintext of the indexpage (DokuWiki source)
+            namespace (str): namespace where the plenums protocols are saved to
+        
+        Returns:
+            str: updated plaintext of the indexpage (DokuWiki source)
+        """
         plenum_list = index_page.splitlines()
         # check if header with current year is present
         year_header = f"===== {self.next_date.year} ====="
